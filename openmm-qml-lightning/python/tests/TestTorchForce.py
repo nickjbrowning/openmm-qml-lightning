@@ -1,103 +1,90 @@
 import openmm as mm
-import openmm.unit as unit
+from openmm.unit import *
 import openmmtorch as ot
 import numpy as np
-import pytest
 import torch as pt
-from tempfile import NamedTemporaryFile
+from simtk.openmm import *
+from openmm.app import *
+from time import time
+from sys import stdout
+import sys
+from mendeleev.fetch import fetch_table
 
-@pytest.mark.parametrize('model_file, output_forces,',
-                        [('../../tests/central.pt', False),
-                         ('../../tests/forces.pt', True)])
-@pytest.mark.parametrize('use_cv_force', [True, False])
-@pytest.mark.parametrize('platform', ['Reference', 'CPU', 'CUDA', 'OpenCL'])
+def load_xyz(fname):
 
-def testForce(model_file, output_forces, use_cv_force, platform):
+    fp = open(fname, 'r')
+    
+    lines = fp.readlines()
+    
+    fp.close()
+    
+    natoms = int(lines[0])
+        
+    cell = np.zeros((3, 3))
+    
+    if (',' in lines[1]):
+        cell_info = lines[1].split(',')[1:]
+        for i, vec_str in enumerate(cell_info):
+            cell[i] = np.array([str(v) for v in vec_str.split()])
+         
+    lines = lines[2:]
+    
+    data = np.loadtxt(fname, skiprows=2, dtype=np.dtype([('element', 'U2'), ('coordinates', 'f4', (3))]))
+    
+    df = fetch_table('elements')
+    
+    charges = [df.loc[df['symbol'] == str(v)]['atomic_number'].iloc[0] for v in data['element']]
+    
+    return  data['element'], np.array(charges), data['coordinates'], cell
 
-    if pt.cuda.device_count() < 1 and platform == 'CUDA':
-        pytest.skip('A CUDA device is not available')
-
-    # Create a random cloud of particles.
-    numParticles = 10
+def run_md_openmm_qml_lightning(xyz_file, model_file):
+    
+    print(Platform.getPluginLoadFailures())
+    
+    from openmm.app.element import  Element
+    
     system = mm.System()
-    positions = np.random.rand(numParticles, 3)
-    for _ in range(numParticles):
-        system.addParticle(1.0)
+    
+    elements, charges, coordinates, cell = load_xyz(xyz_file)
+        
+    natoms = coordinates.shape[0]
 
-    # Create a force
     force = ot.TorchForce(model_file)
-    assert not force.getOutputsForces() # Check the default
-    force.setOutputsForces(output_forces)
-    assert force.getOutputsForces() == output_forces
-    if use_cv_force:
-        # Wrap TorchForce into CustomCVForce
-        cv_force = mm.CustomCVForce('force')
-        cv_force.addCollectiveVariable('force', force)
-        system.addForce(cv_force)
-    else:
-        system.addForce(force)
+    
+    force.setCharges(charges.tolist())
+    
+    system.addForce(force)
+    
+    if (not np.all(cell == 0.0)):
+        system.setDefaultPeriodicBoxVectors(cell[0], cell[1], cell[2])
+    
+    top = mm.app.topology.Topology()
+    chain = top.addChain(0)
+    
+    res = top.addResidue("mol", chain)
+    
+    for _ in range(natoms):
+        element = Element.getBySymbol(elements[_])
+        top.addAtom(element.symbol, element, res)
+        system.addParticle(element.mass)
+        
+    integ = LangevinMiddleIntegrator(300 * kelvin, 1.0 / picosecond, 0.002 * picoseconds)
+    
+    platform = mm.Platform.getPlatformByName('CUDA')
+    
+    simulation = Simulation(top, system, integ, platform)
+    
+    simulation.context.setPositions(coordinates * angstrom)
+    
+    state = simulation.context.getState(getPositions=True, getEnergy=True, getForces=True)
+   
+    simulation.minimizeEnergy()
+   
+    start = time()
+    simulation.step(1000)
+    end = time()
+    
+    print (end - start)
+    
 
-    # Compute the forces and energy.
-    integ = mm.VerletIntegrator(1.0)
-    platform = mm.Platform.getPlatformByName(platform)
-    context = mm.Context(system, integ, platform)
-    context.setPositions(positions)
-    state = context.getState(getEnergy=True, getForces=True)
-
-    # See if the energy and forces are correct.  The network defines a potential of the form E(r) = |r|^2
-    expectedEnergy = np.sum(positions*positions)
-    assert np.allclose(expectedEnergy, state.getPotentialEnergy().value_in_unit(unit.kilojoules_per_mole))
-    assert np.allclose(-2*positions, state.getForces(asNumpy=True))
-
-@pytest.mark.parametrize('deviceString', ['cpu', 'cuda:0', 'cuda:1'])
-@pytest.mark.parametrize('precision', ['single', 'mixed', 'double'])
-def testModuleArguments(deviceString, precision):
-
-    if pt.cuda.device_count() < 1 and deviceString == 'cuda:0':
-        pytest.skip('A CUDA device is not available')
-    if pt.cuda.device_count() < 2 and deviceString == 'cuda:1':
-        pytest.skip('Two CUDA devices are not available')
-
-    class TestModule(pt.nn.Module):
-
-        def __init__(self, device, dtype, positions):
-            super().__init__()
-            self.device = device
-            self.dtype = dtype
-            self.register_buffer('positions', pt.tensor(positions).to(dtype))
-
-        def forward(self, positions):
-            assert self.positions.device == self.device
-            assert positions.device == self.device
-            assert positions.dtype == self.dtype
-            assert pt.all(positions == self.positions)
-            return pt.sum(positions)
-
-    with NamedTemporaryFile() as fd:
-
-        numParticles = 10
-        system = mm.System()
-        positions = np.random.rand(numParticles, 3)
-        for _ in range(numParticles):
-            system.addParticle(1.0)
-
-        device = pt.device(deviceString)
-        if device.type == 'cpu' or precision == 'double':
-            dtype = pt.float64
-        else:
-            dtype = pt.float32
-        module = TestModule(device, dtype, positions)
-        pt.jit.script(module).save(fd.name)
-        force = ot.TorchForce(fd.name)
-        system.addForce(force)
-
-        integrator = mm.VerletIntegrator(1.0)
-        platform = mm.Platform.getPlatformByName(device.type.upper())
-        properties = {}
-        if device.type == 'cuda':
-            properties['DeviceIndex'] = str(device.index)
-            properties['Precision'] = precision
-        context = mm.Context(system, integrator, platform, properties)
-
-        context.setPositions(positions)
-        context.getState(getEnergy=True, getForces=True)
+run_md_openmm_qml_lightning('aspirin.xyz', 'model_sorf.pt')

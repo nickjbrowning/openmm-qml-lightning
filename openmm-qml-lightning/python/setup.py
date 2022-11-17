@@ -9,8 +9,6 @@ nn_plugin_header_dir = '@NN_PLUGIN_HEADER_DIR@'
 nn_plugin_library_dir = '@NN_PLUGIN_LIBRARY_DIR@'
 torch_dir, _ = os.path.split('@TORCH_LIBRARY@')
 
-print ("HELLO", torch_dir)
-
 # setup extra compile and link arguments on Mac
 extra_compile_args = ['-std=c++11']
 extra_link_args = []
@@ -19,9 +17,9 @@ if platform.system() == 'Darwin':
     extra_compile_args += ['-stdlib=libc++', '-mmacosx-version-min=10.7']
     extra_link_args += ['-stdlib=libc++', '-mmacosx-version-min=10.7', '-Wl', '-rpath', openmm_dir + '/lib', '-rpath', torch_dir]
 
-extension = Extension(name='_openmmtorch',
+extension = Extension(name='_openmm_qml_lightning',
                       sources=['TorchPluginWrapper.cpp'],
-                      libraries=['OpenMM', 'OpenMMTorch'],
+                      libraries=['OpenMM', 'OpenMMQMLLightning'],
                       include_dirs=[os.path.join(openmm_dir, 'include'), nn_plugin_header_dir, os.path.join(torch_dir, '../include')],
                       library_dirs=[os.path.join(openmm_dir, 'lib'), nn_plugin_library_dir, os.path.join(torch_dir, '../lib')],
                       runtime_library_dirs=[os.path.join(openmm_dir, 'lib'), torch_dir],
@@ -29,9 +27,9 @@ extension = Extension(name='_openmmtorch',
                       extra_link_args=extra_link_args
                      )
 
-setup(name='openmmtorch',
+setup(name='openmm_qml_lightning',
       version='1.0',
-      py_modules=['openmmtorch'],
+      py_modules=['openmm_qml_lightning'],
       ext_modules=[extension],
      )
 

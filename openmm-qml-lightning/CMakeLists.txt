@@ -1,5 +1,5 @@
 #---------------------------------------------------
-# OpenMM PyTorch Plugin
+# OpenMM QML-Lightning Plugin
 #----------------------------------------------------
 
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
@@ -51,7 +51,7 @@ SET(${PROJECT_NAME}_LIBRARY_DIR    ${LIBRARY_OUTPUT_PATH}/${CMAKE_CFG_INTDIR})
 SET(NN_PLUGIN_SOURCE_SUBDIRS openmmapi serialization)
 
 # Set the library name
-SET(NN_LIBRARY_NAME OpenMMTorch)
+SET(NN_LIBRARY_NAME OpenMMQMLLightning)
 SET(SHARED_NN_TARGET ${NN_LIBRARY_NAME})
 
 # These are all the places to search for header files which are to be part of the API.

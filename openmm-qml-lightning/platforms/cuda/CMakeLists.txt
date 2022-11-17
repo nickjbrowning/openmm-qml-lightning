@@ -1,11 +1,11 @@
 #---------------------------------------------------
-# OpenMM Torch Plugin CUDA Platform
+# OpenMM QML-Lightning Plugin CUDA Platform
 #----------------------------------------------------
 
 # Collect up information about the version of the OpenMM library we're building
 # and make it available to the code so it can be built into the binaries.
 
-SET(NN_CUDA_LIBRARY_NAME OpenMMTorchCUDA)
+SET(NN_CUDA_LIBRARY_NAME OpenMMQMLLightningCUDA)
 
 SET(SHARED_TARGET ${NN_CUDA_LIBRARY_NAME})
 

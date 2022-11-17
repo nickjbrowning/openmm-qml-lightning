@@ -1,4 +1,4 @@
-%module openmmtorch
+%module openmm_qml_lightning
 
 %import(module="simtk.openmm") "swig/OpenMMSwigHeaders.i"
 %include "swig/typemaps.i"

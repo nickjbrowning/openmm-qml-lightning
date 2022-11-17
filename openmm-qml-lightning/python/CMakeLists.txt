@@ -1,5 +1,5 @@
 set(WRAP_FILE TorchPluginWrapper.cpp)
-set(MODULE_NAME openmmtorch)
+set(MODULE_NAME openmm_qml_lightning)
 
 # Execute SWIG to generate source code for the Python module.
 
@@ -10,8 +10,8 @@ add_custom_command(
         -o "${WRAP_FILE}"
         "-I${OPENMM_DIR}/include"
         "-I${PYTORCH_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/openmmtorch.i"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/openmmtorch.i"
+        "${CMAKE_CURRENT_SOURCE_DIR}/openmm_qml_lightning.i"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/openmm_qml_lightning.i"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
