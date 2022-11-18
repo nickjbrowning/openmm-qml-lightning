@@ -50,19 +50,94 @@ using namespace std;
 
 extern "C" OPENMM_EXPORT void registerTorchCudaKernelFactories();
 
-void testForce(bool outputsForces) {
-	// Create a random cloud of particles.
 
-	const int numParticles = 10;
+/*
+21
+
+C          2.05639       -0.16543        0.39727
+C          0.68890        2.02854       -0.64816
+C          2.74071        1.02327        0.12533
+C          2.05734        2.11782       -0.40016
+C         -3.59396        1.03209        0.04589
+C          0.67738       -0.27507        0.15097
+C          0.00274        0.84234       -0.35887
+O          0.63293       -2.54526        0.93360
+O         -1.76452        1.43252        1.56571
+O         -1.24894       -1.68411        0.12975
+C          0.05278       -1.58881        0.44958
+C         -2.15199        1.12841        0.44513
+O         -1.36167        0.82832       -0.65825
+H         -1.47652       -2.60111        0.39232
+H          2.60948       -1.01173        0.80284
+H          0.15708        2.88266       -1.05823
+H          3.80777        1.09126        0.32364
+H          2.59044        3.04081       -0.61405
+H         -3.81640        0.02049       -0.30287
+H         -4.22480        1.24591        0.91440
+H         -3.81296        1.76576       -0.73332
+*/
+void testAspirinForce() {
+
+	cout << "Running test on hardcoded aspirin configuration..." << endl;
+
+	vector < Vec3 > positions(21);
+
+	positions[0]  = Vec3(2.05639,       -0.16543,        0.39727) /10.0;
+	positions[1]  = Vec3(0.68890,        2.02854,       -0.64816)/10.0;
+	positions[2]  = Vec3(2.74071,        1.02327,        0.12533)/10.0;
+	positions[3]  = Vec3(2.05734,        2.11782,       -0.40016)/10.0;
+	positions[4]  = Vec3(-3.59396,        1.03209,        0.04589)/10.0;
+	positions[5]  = Vec3(0.67738,       -0.27507,        0.15097)/10.0;
+	positions[6]  = Vec3(0.00274,        0.84234,       -0.35887)/10.0;
+	positions[7]  = Vec3(0.63293,       -2.54526,        0.93360)/10.0;
+	positions[8]  = Vec3(-1.76452,        1.43252,        1.56571)/10.0;
+	positions[9]  = Vec3(-1.24894 ,      -1.68411,        0.12975)/ 10.0;
+	positions[10]  = Vec3(0.05278 ,      -1.58881,        0.44958)/ 10.0;
+	positions[11]  = Vec3(-2.15199,        1.12841,        0.44513)/ 10.0;
+	positions[12]  = Vec3(-1.36167,        0.82832,       -0.65825)/ 10.0;
+	positions[13]  = Vec3(-1.47652,       -2.60111,        0.39232)/ 10.0;
+	positions[14]  = Vec3(2.60948 ,      -1.01173 ,       0.80284)/10.0;
+	positions[15]  = Vec3( 0.15708,        2.88266,       -1.05823)/ 10.0;
+	positions[16]  = Vec3(3.80777 ,       1.09126 ,       0.32364)/ 10.0;
+	positions[17]  = Vec3(2.59044 ,       3.04081 ,      -0.61405)/ 10.0;
+	positions[18]  = Vec3(-3.81640,        0.02049,       -0.30287)/ 10.0;
+	positions[19]  = Vec3(-4.22480,        1.24591,        0.91440)/ 10.0;
+	positions[20]  = Vec3(-3.81296,        1.76576,       -0.73332)/ 10.0;
+
+	vector <float> charges(21);
+
+	charges[0] = 6.0;
+	charges[1] = 6.0;
+	charges[2] = 6.0;
+	charges[3] = 6.0;
+	charges[4] = 6.0;
+	charges[5] = 6.0;
+	charges[6] = 6.0;
+	charges[7] = 8.0;
+	charges[8] = 8.0;
+	charges[9] = 8.0;
+	charges[10] = 6.0;
+	charges[11] = 6.0;
+	charges[12] = 8.0;
+	charges[13] = 1.0;
+	charges[14] = 1.0;
+	charges[15] = 1.0;
+	charges[16] = 1.0;
+	charges[17] = 1.0;
+	charges[18] = 1.0;
+	charges[19] = 1.0;
+	charges[20] = 1.0;
+
 	System system;
-	vector < Vec3 > positions(numParticles);
-	OpenMM_SFMT::SFMT sfmt;
-	init_gen_rand(0, sfmt);
-	for (int i = 0; i < numParticles; i++) {
-		system.addParticle(1.0);
-		positions[i] = Vec3(genrand_real2(sfmt), genrand_real2(sfmt), genrand_real2(sfmt)) * 10;
+
+
+	for (int i = 0; i < positions.size(); i++) {
+		system.addParticle(charges[i]); // not correct but only matters for MD...
 	}
-	TorchForce *force = new TorchForce(outputsForces ? "tests/forces.pt" : "tests/central.pt");
+
+	TorchForce *force = new TorchForce("tests/model_sorf.pt");
+
+	force->setCharges(charges);
 
 	system.addForce(force);
 
@@ -74,117 +149,36 @@ void testForce(bool outputsForces) {
 	context.setPositions(positions);
 	State state = context.getState(State::Energy | State::Forces);
 
-	// See if the energy is correct.  The network defines a potential of the form E(r) = |r|^2
+	float expectedEnergy = -122.511;
 
-	double expectedEnergy = 0;
-	for (int i = 0; i < numParticles; i++) {
-		Vec3 pos = positions[i];
-		double r = sqrt(pos.dot(pos));
-		expectedEnergy += r * r;
-		ASSERT_EQUAL_VEC(pos * (-2.0), state.getForces()[i], 1e-5);
+	cout << "-- Potential Energy --" << endl;
+
+	cout << state.getPotentialEnergy() << endl;
+
+	vector<Vec3> forces = state.getForces();
+
+	cout << "-- Forces --" << endl;
+	for (int i = 0; i < forces.size(); i++) {
+		cout  << forces[i] << endl;
 	}
-	ASSERT_EQUAL_TOL(expectedEnergy, state.getPotentialEnergy(), 1e-5);
+
+	ASSERT_EQUAL_TOL(expectedEnergy, state.getPotentialEnergy(), 1e-3);
+
+	cout << "Assertion passed - result looks OK." << endl;
+
 }
 
-void testPeriodicForce() {
-	// Create a random cloud of particles.
-
-	const int numParticles = 10;
-	System system;
-	system.setDefaultPeriodicBoxVectors(Vec3(2, 0, 0), Vec3(0, 3, 0), Vec3(0, 0, 4));
-	vector < Vec3 > positions(numParticles);
-	OpenMM_SFMT::SFMT sfmt;
-	init_gen_rand(0, sfmt);
-	for (int i = 0; i < numParticles; i++) {
-		system.addParticle(1.0);
-		positions[i] = Vec3(genrand_real2(sfmt), genrand_real2(sfmt), genrand_real2(sfmt)) * 10;
-	}
-	TorchForce *force = new TorchForce("tests/periodic.pt");
-	force->setUsesPeriodicBoundaryConditions(true);
-	system.addForce(force);
-
-	// Compute the forces and energy.
-
-	VerletIntegrator integ(1.0);
-	Platform &platform = Platform::getPlatformByName("CUDA");
-	Context context(system, integ, platform);
-	context.setPositions(positions);
-	State state = context.getState(State::Energy | State::Forces);
-
-	// See if the energy is correct.  The network defines a potential of the form E(r) = |r|^2
-
-	double expectedEnergy = 0;
-	for (int i = 0; i < numParticles; i++) {
-		Vec3 pos = positions[i];
-		pos[0] -= floor(pos[0] / 2.0) * 2.0;
-		pos[1] -= floor(pos[1] / 3.0) * 3.0;
-		pos[2] -= floor(pos[2] / 4.0) * 4.0;
-		double r = sqrt(pos.dot(pos));
-		expectedEnergy += r * r;
-		ASSERT_EQUAL_VEC(pos * (-2.0), state.getForces()[i], 1e-5);
-	}
-	ASSERT_EQUAL_TOL(expectedEnergy, state.getPotentialEnergy(), 1e-5);
-}
-
-void testGlobal() {
-	// Create a random cloud of particles.
-
-	const int numParticles = 10;
-	System system;
-	vector < Vec3 > positions(numParticles);
-	OpenMM_SFMT::SFMT sfmt;
-	init_gen_rand(0, sfmt);
-	for (int i = 0; i < numParticles; i++) {
-		system.addParticle(1.0);
-		positions[i] = Vec3(genrand_real2(sfmt), genrand_real2(sfmt), genrand_real2(sfmt)) * 10;
-	}
-	TorchForce *force = new TorchForce("tests/global.pt");
-	force->addGlobalParameter("k", 2.0);
-	system.addForce(force);
-
-	// Compute the forces and energy.
-
-	VerletIntegrator integ(1.0);
-	Platform &platform = Platform::getPlatformByName("CUDA");
-	Context context(system, integ, platform);
-	context.setPositions(positions);
-	State state = context.getState(State::Energy | State::Forces);
-
-	// See if the energy is correct.  The network defines a potential of the form E(r) = k*|r|^2
-
-	double expectedEnergy = 0;
-	for (int i = 0; i < numParticles; i++) {
-		Vec3 pos = positions[i];
-		double r = sqrt(pos.dot(pos));
-		expectedEnergy += 2 * r * r;
-		ASSERT_EQUAL_VEC(pos * (-4.0), state.getForces()[i], 1e-5);
-	}
-	ASSERT_EQUAL_TOL(expectedEnergy, state.getPotentialEnergy(), 1e-5);
-
-	// Change the global parameter and see if the forces are still correct.
-
-	context.setParameter("k", 3.0);
-	state = context.getState(State::Forces);
-	for (int i = 0; i < numParticles; i++) {
-		Vec3 pos = positions[i];
-		double r = sqrt(pos.dot(pos));
-		ASSERT_EQUAL_VEC(pos * (-6.0), state.getForces()[i], 1e-5);
-	}
-}
 
 int main(int argc, char *argv[]) {
 	try {
 		registerTorchCudaKernelFactories();
 		if (argc > 1)
 			Platform::getPlatformByName("CUDA").setPropertyDefaultValue("Precision", string(argv[1]));
-		testForce(false);
-		testForce(true);
-		testPeriodicForce();
-		testGlobal();
+		testAspirinForce();
 	} catch (const std::exception &e) {
 		std::cout << "exception: " << e.what() << std::endl;
 		return 1;
 	}
-	std::cout << "Done" << std::endl;
+	std::cout << "Done with all tests." << std::endl;
 	return 0;
 }

@@ -76,7 +76,11 @@ def unit_test_model():
     
     simulation.context.setPositions(coordinates * angstrom)
     
+    
+    
     state = simulation.context.getState(getPositions=True, getEnergy=True, getForces=True)
+    
+    print (state.getPositions())
     
     energy = state.getPotentialEnergy()
     ref_energy = -122.51275
