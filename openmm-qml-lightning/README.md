@@ -3,7 +3,7 @@ OpenMM-QML-Lightning
 
 This plugin allows [QML-Lightning](https://github.com/nickjbrowning/qml-lightning) models to be used with [OpenMM](http://openmm.org). This works via defining a `TorchForce` object which can load a compiled TorchScript save file. This plugin and tutorial is adapted from the [OpenMM-Torch](https://github.com/openmm/openmm-torch) plugin. I recommended reading through and familiarising yourself with the installation of OpenMM-Torch before attempting to install this plugin. 
 
-Note that the TorchForce object expects input positions to be in nanometers (through the system or context setPositions(...) method), and for the model to be trained on energies in kcal/mol and forces in kcal/mol/angstrom with coordinates also being in angstrom. Unit conversions are handled interally within CudaTorchKernels.cpp execution code.
+Note that the TorchForce object expects input positions to be in nanometers (through the system or context setPositions(...) method), and for the model to be trained on energies in kcal/mol and forces in kcal/mol/angstrom with coordinates also being in angstrom. Unit conversions are handled interally within CudaTorchKernels.cpp execution code. 
 
 Building from Source
 ======================================
