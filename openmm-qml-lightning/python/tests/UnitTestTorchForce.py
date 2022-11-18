@@ -1,6 +1,6 @@
 import openmm as mm
 from openmm.unit import *
-import openmmtorch as ot
+import openmm_qml_lightning as ot
 import numpy as np
 import torch as pt
 from simtk.openmm import *
@@ -37,7 +37,7 @@ def load_xyz(fname):
     
     return  data['element'], np.array(charges), data['coordinates'], cell
 
-def run_md_openmm_qml_lightning(xyz_file, model_file):
+def unit_test_model():
     
     print(Platform.getPluginLoadFailures())
     
@@ -45,11 +45,11 @@ def run_md_openmm_qml_lightning(xyz_file, model_file):
     
     system = mm.System()
     
-    elements, charges, coordinates, cell = load_xyz(xyz_file)
+    elements, charges, coordinates, cell = load_xyz('aspirin.xyz')
         
     natoms = coordinates.shape[0]
 
-    force = ot.TorchForce(model_file)
+    force = ot.TorchForce('model_sorf.pt')
     
     force.setCharges(charges.tolist())
     
@@ -77,14 +77,13 @@ def run_md_openmm_qml_lightning(xyz_file, model_file):
     simulation.context.setPositions(coordinates * angstrom)
     
     state = simulation.context.getState(getPositions=True, getEnergy=True, getForces=True)
-   
-    simulation.minimizeEnergy()
-   
-    start = time()
-    simulation.step(1000)
-    end = time()
     
-    print (end - start)
+    energy = state.getPotentialEnergy()
+    ref_energy = -122.51275
     
+    assert np.abs(energy._value  - ref_energy) < 0.01, f"potential energy difference is larger than 0.01: {energy._value  - ref_energy}"
+    
+    print ("aspirin model test passed")
+    
+unit_test_model()
 
-run_md_openmm_qml_lightning('aspirin.xyz', 'model_sorf.pt')
