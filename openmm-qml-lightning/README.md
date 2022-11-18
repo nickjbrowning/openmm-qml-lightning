@@ -34,7 +34,7 @@ the OpenMM header files and libraries.  If you are unsure of what directory this
 10. Press "Configure" again if necessary, then press "Generate".
 
 11. Type `make install` to install the plugin, and `make PythonInstall` to
-install the Python wrapper. Note that you may need to manually copy the `libOpenMMQMLLightning.so` to `OPENMM_DIR/lib` and `libOpenMMQMLLightningCUDA.so` to `OPENMM_DIR/lib/plugins`.
+install the Python wrapper. Note that you may need to manually copy the `libOpenMMQMLLightning.so` to `OPENMM_DIR/lib` and `libOpenMMQMLLightningCUDA.so` to `OPENMM_DIR/lib/plugins`. Check that the installed libraries have valid linkage paths via `ldd OPENMM_DIR/lib/libOpenMMQMLLightning.so`.
 
 Note: If you are running multiple versions of CUDA (or through conda) make sure that `LIBNVTOOLSEXT` points to the correct library in `CUDA_TOOLKIT_ROOT_DIR`.
 
