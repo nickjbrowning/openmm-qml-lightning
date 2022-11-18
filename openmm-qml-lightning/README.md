@@ -54,7 +54,7 @@ The following script provides an example of how to run MD with QML-Lightning.
 ```python
 import openmm as mm
 from openmm.unit import *
-import openmmtorch as ot
+import openmm_qml_lightning as ot
 import numpy as np
 import torch as pt
 from simtk.openmm import *
